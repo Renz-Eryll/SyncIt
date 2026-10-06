@@ -1,6 +1,6 @@
 "use server";
 
-import { Query, ID } from "node-appwrite";
+import { Query, ID, Models } from "node-appwrite";
 import { createAdminClient, createSessionClient } from "@/lib/appwrite";
 import { appwriteConfig } from "../appwrite/config";
 import { parseStringify } from "../utils";
@@ -17,6 +17,21 @@ const getUserByEmail = async (email: string) => {
   );
 
   return result.total > 0 ? result.documents[0] : null;
+};
+
+// Keep the user document pointing at the current Appwrite auth user.
+// getCurrentUser looks users up by accountId, so a stale id breaks login.
+const syncAccountId = async (user: Models.Document, accountId: string) => {
+  if (user.accountId === accountId) return;
+
+  const { databases } = await createAdminClient();
+
+  await databases.updateDocument(
+    appwriteConfig.databaseId,
+    appwriteConfig.usersCollectionId,
+    user.$id,
+    { accountId }
+  );
 };
 
 const handleError = (error: unknown, message: string) => {
@@ -48,7 +63,9 @@ export const createAccount = async ({
   const accountId = await sendEmailOTP({ email });
   if (!accountId) throw new Error("Failed to send an OTP");
 
-  if (!existingUser) {
+  if (existingUser) {
+    await syncAccountId(existingUser, accountId);
+  } else {
     const { databases } = await createAdminClient();
 
     await databases.createDocument(
@@ -142,8 +159,13 @@ export const signInUser = async ({ email }: { email: string }) => {
     const existingUser = await getUserByEmail(email);
 
     if (existingUser) {
-      await sendEmailOTP({ email });
-      return parseStringify({ accountId: existingUser.accountId });
+      // Use the auth user id Appwrite returns, not the stored one, which can be stale
+      const accountId = await sendEmailOTP({ email });
+      if (!accountId) throw new Error("Failed to send an OTP");
+
+      await syncAccountId(existingUser, accountId);
+
+      return parseStringify({ accountId });
     }
 
     return parseStringify({ accountId: null, error: "User not found" });
