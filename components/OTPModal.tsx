@@ -4,19 +4,16 @@ import React, { useState } from "react";
 import {
   AlertDialog,
   AlertDialogAction,
-  AlertDialogCancel,
   AlertDialogContent,
   AlertDialogDescription,
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-  AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 
 import {
   InputOTP,
   InputOTPGroup,
-  InputOTPSeparator,
   InputOTPSlot,
 } from "@/components/ui/input-otp";
 
@@ -35,23 +32,36 @@ const OTPModal = ({
   const [isOpen, setIsOpen] = useState(true);
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
 
   const handleSubmit = async (e: React.MouseEvent<HTMLButtonElement>) => {
     e.preventDefault();
     setIsLoading(true);
+    setErrorMessage("");
 
     try {
       const sessionId = await verifySecret({ accountId, password });
 
-      if (sessionId) router.push("/");
+      if (sessionId) {
+        router.push("/");
+        return;
+      }
+      setErrorMessage("Invalid code. Please try again.");
     } catch (error) {
       console.log("Failed to verify OTP", error);
+      setErrorMessage("Invalid or expired code. Please try again.");
+    } finally {
+      setIsLoading(false);
     }
-    setIsLoading(false);
   };
 
   const handleResendOTP = async () => {
-    await sendEmailOTP({ email });
+    setErrorMessage("");
+    try {
+      await sendEmailOTP({ email });
+    } catch {
+      setErrorMessage("Failed to resend code. Please try again.");
+    }
   };
 
   return (
@@ -70,7 +80,7 @@ const OTPModal = ({
             />
           </AlertDialogTitle>
           <AlertDialogDescription className="subtitle-2 text-center text-[#333F4E]">
-            We've sent a code to{" "}
+            We&apos;ve sent a code to{" "}
             <span className="pl-1 text-[var(--brand)]">{email}</span>
           </AlertDialogDescription>
         </AlertDialogHeader>
@@ -84,6 +94,9 @@ const OTPModal = ({
             <InputOTPSlot index={5} className="shad-otp-slot" />
           </InputOTPGroup>
         </InputOTP>
+        {errorMessage && (
+          <p className="error-message text-center">*{errorMessage}</p>
+        )}
         <AlertDialogFooter>
           <div className="flex w-full flex-col gap-4">
             <AlertDialogAction
@@ -103,7 +116,7 @@ const OTPModal = ({
               )}
             </AlertDialogAction>
             <div className="subtitle-2 mt-2 text-center  text-[#333F4E]">
-              Didn't get a code?
+              Didn&apos;t get a code?
               <Button
                 type="button"
                 variant="link"

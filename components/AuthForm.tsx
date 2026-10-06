@@ -33,7 +33,7 @@ const authFormSchema = (formType: FormType) => {
 const AuthForm = ({ type }: { type: FormType }) => {
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
-  const [accountId, setAccountId] = useState(null);
+  const [accountId, setAccountId] = useState<string | null>(null);
 
   const formSchema = authFormSchema(type);
   const form = useForm<z.infer<typeof formSchema>>({
@@ -46,6 +46,8 @@ const AuthForm = ({ type }: { type: FormType }) => {
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
     setIsLoading(true);
     setErrorMessage("");
+    // Reset so the OTP modal remounts (and reopens) on every submit
+    setAccountId(null);
 
     try {
       const user =
@@ -56,9 +58,22 @@ const AuthForm = ({ type }: { type: FormType }) => {
             })
           : await signInUser({ email: values.email });
 
+      if (!user?.accountId) {
+        setErrorMessage(
+          user?.error === "User not found"
+            ? "No account found with this email. Please sign up first."
+            : "Something went wrong. Please try again."
+        );
+        return;
+      }
+
       setAccountId(user.accountId);
     } catch {
-      setErrorMessage("Failed to create account. Please try again.");
+      setErrorMessage(
+        type === "sign-up"
+          ? "Failed to create account. Please try again."
+          : "Failed to sign in. Please try again."
+      );
     } finally {
       setIsLoading(false);
     }
