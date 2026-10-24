@@ -21,20 +21,29 @@ const Search = () => {
   const [debouncedQuery] = useDebounce(query, 100);
 
   useEffect(() => {
-    const fetchFiles = async () => {
-      if (debouncedQuery.length === 0) {
-        setResults([]);
-        setOpen(false);
-        return router.push(path.replace(searchParams.toString(), ""));
+    if (debouncedQuery.length === 0) {
+      setResults([]);
+      setOpen(false);
+      // Clearing the box drops only the ?query param, keeping others such as ?sort.
+      if (searchParams.has("query")) {
+        const params = new URLSearchParams(searchParams.toString());
+        params.delete("query");
+        router.replace(params.size ? `${path}?${params}` : path);
       }
+      return;
+    }
 
-      const files = await getFiles({ types: [], searchText: debouncedQuery });
+    // Ignore responses that arrive after a newer search has started.
+    let stale = false;
+    getFiles({ types: [], searchText: debouncedQuery }).then((files) => {
+      if (stale) return;
       setResults(files.documents);
       setOpen(true);
+    });
+    return () => {
+      stale = true;
     };
-
-    fetchFiles();
-  }, [debouncedQuery]);
+  }, [debouncedQuery, path, router, searchParams]);
 
   useEffect(() => {
     if (!searchQuery) {
@@ -51,7 +60,7 @@ const Search = () => {
         file.type === "video" || file.type === "audio"
           ? "media"
           : file.type + "s"
-      }?query=${query}`
+      }?query=${encodeURIComponent(query)}`
     );
   };
 
