@@ -1,5 +1,6 @@
 "use server";
 
+import { unstable_rethrow } from "next/navigation";
 import { Query, ID, Models } from "node-appwrite";
 import { createAdminClient, createSessionClient } from "@/lib/appwrite";
 import { appwriteConfig } from "../appwrite/config";
@@ -35,6 +36,8 @@ const syncAccountId = async (user: Models.Document, accountId: string) => {
 };
 
 const handleError = (error: unknown, message: string) => {
+  // Let Next.js control-flow errors (redirect, dynamic usage) propagate unlogged.
+  unstable_rethrow(error);
   console.log(error, message);
   throw error;
 };
@@ -110,7 +113,10 @@ export const verifySecret = async ({
 };
 
 export const getCurrentUser = async () => {
-  const sessionClient = await createSessionClient().catch(() => null);
+  const sessionClient = await createSessionClient().catch((error) => {
+    unstable_rethrow(error);
+    return null;
+  });
 
   if (!sessionClient) return null;
 
@@ -135,7 +141,10 @@ export const getCurrentUser = async () => {
 };
 
 export const signOutUser = async () => {
-  const sessionClient = await createSessionClient().catch(() => null);
+  const sessionClient = await createSessionClient().catch((error) => {
+    unstable_rethrow(error);
+    return null;
+  });
 
   if (!sessionClient) {
     redirect("/sign-in");
