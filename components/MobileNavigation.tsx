@@ -58,7 +58,7 @@ const MobileNavigation = ({
           <SheetTitle>
             <div className="header-user">
               <Image
-                src={avatarPlaceholderUrl}
+                src={avatar || avatarPlaceholderUrl}
                 alt="avatar"
                 width={44}
                 height={44}

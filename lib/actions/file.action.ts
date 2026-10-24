@@ -1,5 +1,6 @@
 "use server";
 
+import { unstable_rethrow } from "next/navigation";
 import { createAdminClient, createSessionClient } from "@/lib/appwrite";
 import { InputFile } from "node-appwrite/file";
 import { appwriteConfig } from "@/lib/appwrite/config";
@@ -9,6 +10,8 @@ import { revalidatePath } from "next/cache";
 import { getCurrentUser } from "./user.actions";
 
 const handleError = (error: unknown, message: string) => {
+  // Let Next.js control-flow errors (redirect, dynamic usage) propagate unlogged.
+  unstable_rethrow(error);
   console.log(error, message);
   throw error;
 };
